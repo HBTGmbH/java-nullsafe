@@ -59,7 +59,6 @@ class Tool {
 			entry = jarIn.getNextEntry();
 		}
 		jarOut.finish();
-		jarOut.flush();
 		jarOut.close();
 		fos.close();
 		jarIn.close();

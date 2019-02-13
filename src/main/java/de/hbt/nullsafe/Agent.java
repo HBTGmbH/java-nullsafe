@@ -88,30 +88,29 @@ class Agent implements ClassFileTransformer {
 			this.instanceMethod = instanceMethod;
 		}
 
+		private static BasicValue produce(AbstractInsnNode insn, BasicValue delegate, List<? extends BasicValue> values,
+				boolean needsNullCheck, boolean canProduceNull) {
+			if (delegate == null)
+				return null;
+			return new DefUseBasicValue(insn, delegate, values, needsNullCheck, canProduceNull);
+		}
+
 		@Override
 		public BasicValue naryOperation(AbstractInsnNode insn, List<? extends BasicValue> values)
 				throws AnalyzerException {
-			BasicValue delegate = super.naryOperation(insn, values);
-			if (delegate == null)
-				return null;
-			return new DefUseBasicValue(insn, delegate, values, true, true);
+			return produce(insn, super.naryOperation(insn, values), values, true, insn instanceof MethodInsnNode
+					&& typeIsReference(Type.getReturnType(((MethodInsnNode) insn).desc)));
 		}
 
 		@Override
 		public BasicValue unaryOperation(AbstractInsnNode insn, BasicValue value) throws AnalyzerException {
-			BasicValue delegate = super.unaryOperation(insn, value);
-			if (delegate == null)
-				return null;
-			return new DefUseBasicValue(insn, delegate, Collections.singletonList(value), insn.getOpcode() == GETFIELD,
-					true);
+			return produce(insn, super.unaryOperation(insn, value), Collections.singletonList(value),
+					insn.getOpcode() == GETFIELD, true);
 		}
 
 		@Override
 		public BasicValue newOperation(AbstractInsnNode insn) throws AnalyzerException {
-			BasicValue delegate = super.newOperation(insn);
-			if (delegate == null)
-				return null;
-			return new DefUseBasicValue(insn, delegate, Collections.<BasicValue>emptyList(), false,
+			return produce(insn, super.newOperation(insn), Collections.<BasicValue>emptyList(), false,
 					insn.getOpcode() == ACONST_NULL || (insn.getOpcode() == GETSTATIC
 							&& typeIsReference(Type.getType(((FieldInsnNode) insn).desc))));
 		}
@@ -122,35 +121,33 @@ class Agent implements ClassFileTransformer {
 
 		@Override
 		public BasicValue copyOperation(AbstractInsnNode insn, BasicValue value) throws AnalyzerException {
-			BasicValue delegate = super.copyOperation(insn, value);
-			if (delegate == null)
-				return null;
-			/* Use empty source value to not leak null-checks out of the __nullsafe(...) call! */
-			return new DefUseBasicValue(insn, delegate, Collections.<BasicValue>emptyList(), false,
+			/*
+			 * Use empty source value to not leak null-checks out of the __nullsafe(...)
+			 * call!
+			 */
+			return produce(insn, super.copyOperation(insn, value), Collections.<BasicValue>emptyList(), false,
 					insn.getOpcode() == ALOAD && (!instanceMethod || ((VarInsnNode) insn).var != 0));
 		}
 
 		@Override
 		public BasicValue binaryOperation(AbstractInsnNode insn, BasicValue value1, BasicValue value2)
 				throws AnalyzerException {
-			BasicValue delegate = super.binaryOperation(insn, value1, value2);
-			if (delegate == null)
-				return null;
-			return new DefUseBasicValue(insn, delegate, Arrays.asList(value1, value2), false, false);
+			return produce(insn, super.binaryOperation(insn, value1, value2), Arrays.asList(value1, value2), false,
+					false);
 		}
 	}
 
 	public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
 			ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
 		/*
-		 * Exclude some classes that are guaranteed not to contain __nullsafe(...) calls to speed up the transformation
-		 * process.
+		 * Exclude some classes that are guaranteed not to contain __nullsafe(...) calls
+		 * to speed up the transformation process.
 		 */
-		if (className == null || classfileBuffer == null
-				|| className.startsWith("java/") || className.startsWith("javax/")
-		        || className.startsWith("com/sun/") || className.startsWith("com/ibm/")
-				|| className.startsWith("sun/") || className.startsWith("jdk/internal/")
-				|| className.startsWith("org/hibernate/") || className.startsWith("org/apache/"))
+		if (className == null || classfileBuffer == null || className.startsWith("java/")
+				|| className.startsWith("javax/") || className.startsWith("com/sun/")
+				|| className.startsWith("com/ibm/") || className.startsWith("sun/")
+				|| className.startsWith("jdk/internal/") || className.startsWith("org/hibernate/")
+				|| className.startsWith("org/apache/"))
 			return null;
 		try {
 			return doTransform(className, classfileBuffer);
@@ -188,7 +185,10 @@ class Agent implements ClassFileTransformer {
 
 	private byte[] transformMethods(final String className, ClassReader cr, final Set<String> methodsToTransform) {
 		byte majorVersion = (byte) cr.readByte(7);
-		/* Build ClassWriter based on ClassReader to quickly copy all untransformed methods and the constant pool. */
+		/*
+		 * Build ClassWriter based on ClassReader to quickly copy all untransformed
+		 * methods and the constant pool.
+		 */
 		ClassWriter cw = new ClassWriter(cr,
 				ClassWriter.COMPUTE_MAXS | (majorVersion >= 51 ? ClassWriter.COMPUTE_FRAMES : 0));
 		cr.accept(new ClassVisitor(ASM7, cw) {
@@ -197,14 +197,17 @@ class Agent implements ClassFileTransformer {
 					String signature, String[] exceptions) {
 				final MethodVisitor original = super.visitMethod(access, methodName, methodDescriptor, signature,
 						exceptions);
-				/* If this method should not get transformed, return the original MethodVisitor */
+				/*
+				 * If this method should not get transformed, return the original MethodVisitor
+				 */
 				if (!methodsToTransform.contains(methodName + methodDescriptor))
 					return original;
 				/* Build a MethodNode whose instructions we later modify */
 				final MethodNode mn = new MethodNode(ASM7, access, methodName, methodDescriptor, signature, exceptions);
 				return new MethodVisitor(ASM7, mn) {
 					/**
-					 * visitEnd() is the very last visitor method called. This is where we will transform the method.
+					 * visitEnd() is the very last visitor method called. This is where we will
+					 * transform the method.
 					 */
 					public void visitEnd() {
 						/* Do the transformation */
@@ -219,7 +222,8 @@ class Agent implements ClassFileTransformer {
 					}
 
 					/**
-					 * Finds calls to __nullsafe(...) and injects null-checks in the definition-use instruction chain.
+					 * Finds calls to __nullsafe(...) and injects null-checks in the definition-use
+					 * instruction chain.
 					 */
 					private void transformMethod(String className, MethodNode mn) {
 						Analyzer<BasicValue> analyzer = new DefUseAnalyzer((access & ACC_STATIC) == 0);

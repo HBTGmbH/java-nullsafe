@@ -162,6 +162,11 @@ public class NullsafeIT {
 	}
 
 	@Test
+	public void testNullListSize() {
+		assertNull(__nullsafe(((List<String>) null).size()));
+	}
+
+	@Test
 	public void testStringListGet() {
 		assertNotNull(__nullsafe(Collections.singletonList("Hello").get(0)));
 	}
