@@ -98,21 +98,25 @@ class Agent implements ClassFileTransformer {
 		@Override
 		public BasicValue naryOperation(AbstractInsnNode insn, List<? extends BasicValue> values)
 				throws AnalyzerException {
-			return produce(insn, super.naryOperation(insn, values), values, true, insn instanceof MethodInsnNode
-					&& typeIsReference(Type.getReturnType(((MethodInsnNode) insn).desc)));
+			boolean isCallReturningRef = insn instanceof MethodInsnNode
+					&& typeIsReference(Type.getReturnType(((MethodInsnNode) insn).desc));
+			return produce(insn, super.naryOperation(insn, values), values, true, isCallReturningRef);
 		}
 
 		@Override
 		public BasicValue unaryOperation(AbstractInsnNode insn, BasicValue value) throws AnalyzerException {
-			return produce(insn, super.unaryOperation(insn, value), Collections.singletonList(value),
-					insn.getOpcode() == GETFIELD, true);
+			boolean isGetField = insn.getOpcode() == GETFIELD;
+			boolean isCheckCast = insn.getOpcode() == CHECKCAST;
+			return produce(insn, super.unaryOperation(insn, value), Collections.singletonList(value), isGetField,
+					isGetField || isCheckCast);
 		}
 
 		@Override
 		public BasicValue newOperation(AbstractInsnNode insn) throws AnalyzerException {
+			boolean nullConstOrRefFieldGet = insn.getOpcode() == ACONST_NULL
+					|| (insn.getOpcode() == GETSTATIC && typeIsReference(Type.getType(((FieldInsnNode) insn).desc)));
 			return produce(insn, super.newOperation(insn), Collections.<BasicValue>emptyList(), false,
-					insn.getOpcode() == ACONST_NULL || (insn.getOpcode() == GETSTATIC
-							&& typeIsReference(Type.getType(((FieldInsnNode) insn).desc))));
+					nullConstOrRefFieldGet);
 		}
 
 		private static boolean typeIsReference(Type t) {
@@ -121,19 +125,23 @@ class Agent implements ClassFileTransformer {
 
 		@Override
 		public BasicValue copyOperation(AbstractInsnNode insn, BasicValue value) throws AnalyzerException {
+			boolean nonThisRefVariableLoad = insn.getOpcode() == ALOAD
+					&& (!instanceMethod || ((VarInsnNode) insn).var != 0);
 			/*
 			 * Use empty source value to not leak null-checks out of the __nullsafe(...)
 			 * call!
 			 */
 			return produce(insn, super.copyOperation(insn, value), Collections.<BasicValue>emptyList(), false,
-					insn.getOpcode() == ALOAD && (!instanceMethod || ((VarInsnNode) insn).var != 0));
+					nonThisRefVariableLoad);
 		}
 
 		@Override
 		public BasicValue binaryOperation(AbstractInsnNode insn, BasicValue value1, BasicValue value2)
 				throws AnalyzerException {
-			return produce(insn, super.binaryOperation(insn, value1, value2), Arrays.asList(value1, value2), false,
-					false);
+			boolean isArrayLoad = insn.getOpcode() >= IALOAD && insn.getOpcode() <= SALOAD;
+			boolean isRefArrayLoad = insn.getOpcode() == AALOAD;
+			return produce(insn, super.binaryOperation(insn, value1, value2), Arrays.asList(value1, value2),
+					isArrayLoad, isRefArrayLoad);
 		}
 	}
 

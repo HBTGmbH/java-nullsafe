@@ -68,25 +68,25 @@ public class NullsafeIT {
 
 	@Test
 	public void testNullAlocalGetNullB() {
-		A nullA = Math.sqrt(9) == 3.0 ? null : new A();
+		A nullA = Math.sqrt(9) == 3.0 ? null : a;
 		assertNull(__nullsafe(nullA.getNullB()));
 	}
 
 	@Test
 	public void testAlocalGetNullB() {
-		A a = Math.sqrt(9) != 3.0 ? null : new A();
+		A a = Math.sqrt(9) != 3.0 ? null : this.a;
 		assertNull(__nullsafe(a.getNullB()));
 	}
 
 	@Test
 	public void testAlocalGetB() {
-		A a = Math.sqrt(9) != 3.0 ? null : new A();
+		A a = Math.sqrt(9) != 3.0 ? null : this.a;
 		assertNotNull(__nullsafe(a.getB()));
 	}
 
 	@Test
 	public void testNullAlocalGetNullCmustThrowNPE() {
-		A nullA = Math.sqrt(9) == 3.0 ? null : new A();
+		A nullA = Math.sqrt(9) == 3.0 ? null : a;
 		B nullB = null;
 		try {
 			nullB = nullA.getB();
@@ -118,7 +118,7 @@ public class NullsafeIT {
 
 	@Test
 	public void testAgetNullB() {
-		assertNull(__nullsafe((new A()).getNullB()));
+		assertNull(__nullsafe(a).getNullB());
 	}
 
 	@Test
@@ -128,27 +128,27 @@ public class NullsafeIT {
 
 	@Test
 	public void testAgetB() {
-		assertNotNull(__nullsafe((new A()).getB()));
+		assertNotNull(__nullsafe(a.getB()));
 	}
 
 	@Test
 	public void testAgetBgetNullC() {
-		assertNull(__nullsafe((new A()).getB().getNullC()));
+		assertNull(__nullsafe(a.getB().getNullC()));
 	}
 
 	@Test
 	public void testAgetBgetC() {
-		assertNotNull(__nullsafe((new A()).getB().getC()));
+		assertNotNull(__nullsafe(a.getB().getC()));
 	}
 
 	@Test
 	public void testAgetBgetCgetNullName() {
-		assertNull(__nullsafe((new A()).getB().getC().getNullName()));
+		assertNull(__nullsafe(a.getB().getC().getNullName()));
 	}
 
 	@Test
 	public void testAgetBgetCgetName() {
-		assertEquals("C", __nullsafe((new A()).getB().getC().getName()));
+		assertEquals("C", __nullsafe(a.getB().getC().getName()));
 	}
 
 	@Test
@@ -212,6 +212,36 @@ public class NullsafeIT {
 			b = __nullsafe(a.getNullB());
 		}
 		assertNull(b);
+	}
+
+	@Test
+	public void testArrayOfNullAgetB() {
+		assertNull(__nullsafe(new A[] { nullA }[0].getB()));
+	}
+
+	@Test
+	public void testArrayOfNullAatIndex1getB() {
+		assertNull(__nullsafe(new A[] { nullA, nullA }[1].getB()));
+	}
+
+	@Test
+	public void testArrayOfAgetB() {
+		assertNotNull(__nullsafe(new A[] { a }[0].getB()));
+	}
+
+	@Test
+	public void testArrayOfAatIndex1getB() {
+		assertNotNull(__nullsafe(new A[] { nullA, a }[1].getB()));
+	}
+
+	@Test
+	public void testIntArray() {
+		assertEquals((Integer) 1, __nullsafe(new int[] { 1 }[0]));
+	}
+
+	@Test
+	public void testDoubleArray() {
+		assertEquals((Double) 3.0, __nullsafe(new double[] { 3.0 }[0]));
 	}
 
 }
