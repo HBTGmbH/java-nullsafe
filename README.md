@@ -3,7 +3,11 @@
 
 A [Java Agent](https://docs.oracle.com/javase/8/docs/api/java/lang/instrument/package-summary.html) for null-safe Java expressions.
 
-Run the JVM with the JVM argument `-javaagent:nullsafe-1.0.0-SNAPSHOT.jar`
+### How to use
+
+Via runtime class transformation by running the JVM with the JVM argument `-javaagent:nullsafe-1.0.0-SNAPSHOT.jar`.
+
+Or, via build-time transformation by running `java -jar nullsafe-1.0.0-SNAPSHOT.jar yourapp.jar yourapp-transformed.jar` once after your application build to transform the classes offline.
 
 ```Java
 @lombok.Data class Car {
