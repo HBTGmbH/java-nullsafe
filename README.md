@@ -1,7 +1,7 @@
 ## Null-safe Java expressions
 [![Build Status](https://travis-ci.org/HBTGmbH/java-nullsafe.svg?branch=master)](https://travis-ci.org/HBTGmbH/java-nullsafe)
 
-A [Java Agent](https://docs.oracle.com/javase/8/docs/api/java/lang/instrument/package-summary.html) for null-safe Java expressions.
+A [Java Agent](https://docs.oracle.com/javase/8/docs/api/java/lang/instrument/package-summary.html) for null-safe Java expressions on Java 5 - 11, 12-RC and 13-EA.
 
 ### How to use
 
