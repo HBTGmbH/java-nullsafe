@@ -154,7 +154,7 @@ class Agent implements ClassFileTransformer {
 		if (className == null || classfileBuffer == null || className.startsWith("java/")
 				|| className.startsWith("javax/") || className.startsWith("com/sun/")
 				|| className.startsWith("com/ibm/") || className.startsWith("sun/")
-				|| className.startsWith("jdk/internal/") || className.startsWith("org/hibernate/")
+				|| className.startsWith("jdk/") || className.startsWith("org/hibernate/")
 				|| className.startsWith("org/apache/"))
 			return null;
 		try {
