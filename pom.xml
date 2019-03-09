@@ -53,7 +53,7 @@
 		<maven-deploy-plugin.version>3.0.0-M1</maven-deploy-plugin.version>
 		<nexus-staging-maven-plugin.version>1.6.8</nexus-staging-maven-plugin.version>
 		<junit.version>4.12</junit.version>
-		<asm.version>7.0</asm.version>
+		<asm.version>7.1</asm.version>
 		<jmh.version>1.21</jmh.version>
 	</properties>
 	<profiles>
